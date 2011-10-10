@@ -123,7 +123,7 @@ watchdog_config(uint8_t v)
 static inline void
 watchdog_noreset_500ms(void)
 {
-	MCUSR &= _BV(WDRF);
+	MCUSR &= ~(_BV(WDRF));
 	watchdog_config(_BV(WDIE) | _BV(WDP2) | _BV(WDP0));
 }
 
