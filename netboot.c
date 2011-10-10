@@ -146,6 +146,13 @@ watchdog_interrupt_flag_clear(void)
 }
 
 static void
+watchdog_wait(void)
+{
+	while(!watchdog_interrupt_flag());
+	watchdog_interrupt_flag_clear();
+}
+
+static void
 spi_wait(void)
 {
 	while (!spi_interrupt_flag());
@@ -302,8 +309,7 @@ exit_bootloader(void)
 	printf("EXIT\r\n");
 	while (1) {
 		pin_toggle(LED);
-		while (!watchdog_interrupt_flag());
-		watchdog_interrupt_flag_clear();
+		watchdog_wait();
 	}
 }
 
@@ -684,8 +690,9 @@ main(void)
 
 	printf("\r\n\r\nResetting chip");
 	wiz_set(WIZ_MR, 0x80);
-	while (wiz_get(WIZ_MR) & 0x80)
-		printf(".");
+
+	/* wait for it to initialize */
+	watchdog_wait();
 	printf("\r\n");
 
 	/* set MAC address */
