@@ -108,7 +108,7 @@ mymemset(uint8_t *dst, uint8_t c, uint16_t len)
 }
 
 static inline void
-watchdog_reset()
+watchdog_reset(void)
 {
 	__asm__ __volatile__ ("wdr\n");
 }
@@ -268,7 +268,7 @@ exit_bootloader(void)
 }
 
 static void
-writepage(uint16_t addr, uint8_t *data)
+writepage(uint16_t addr, const uint8_t *data)
 {
 	uint16_t i;
 
@@ -314,7 +314,7 @@ exit_bootloader(void)
 }
 
 static void
-writepage(uint16_t addr, uint8_t *data)
+writepage(uint16_t addr, const uint8_t *data)
 {
 	(void)data;
 	printf("Flashing 0x%04X\r\n", addr);
@@ -480,7 +480,7 @@ bootp_check(void)
 }
 
 static uint8_t
-get_address()
+get_address(void)
 {
 	sock0_open(BOOTP_CLIENT_PORT);
 
