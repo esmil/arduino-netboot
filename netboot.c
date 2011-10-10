@@ -396,7 +396,8 @@ sock0_readpacket(void)
 	size = in_header.s.size + sizeof(struct wiz_udp_header);
 	while (wiz_get_word(WIZ_Sn_RX_RSR(0)) < size);
 
-	(void)sock0_rx_read(rx_addr, in.a, in_header.s.size);
+	(void)sock0_rx_read(rx_addr, in.a, in_header.s.size > sizeof(in) ?
+			sizeof(in) : in_header.s.size);
 
 	/* S0_RX_RD += size */
 	wiz_set_word(WIZ_Sn_RX_RD(0),
