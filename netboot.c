@@ -50,6 +50,7 @@
 #define TFTP_ERROR 5
 
 #define TFTP_PORT 69
+#define TFTP_SOURCE_PORT 2000 /* choose your favourite number */
 
 #define MASK_2K 0x7FF
 #define SIZE_2K 0x800
@@ -625,7 +626,7 @@ prog(void)
 static uint8_t
 tftp_get(void)
 {
-	sock0_open(2000);
+	sock0_open(TFTP_SOURCE_PORT);
 
 	/* set destination IP and port */
 	wiz_memcpy(WIZ_Sn_DIPR(0), in.bootp.siaddr, sizeof(in.bootp.siaddr));
