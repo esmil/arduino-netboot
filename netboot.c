@@ -264,7 +264,8 @@ exit_bootloader(void)
 {
 	watchdog_reset();
 	watchdog_off();
-	__asm__ __volatile__ ("jmp 0000\n");
+	__asm__ __volatile__ ("jmp 0\n");
+	__builtin_unreachable();
 }
 
 static void
@@ -705,12 +706,13 @@ main(void)
 	*/
 
 	if (get_address())
-		return exit_bootloader();
+		goto exit;
 
 	if (tftp_get())
-		return exit_bootloader();
+		goto exit;
 
 	printf("Success!\r\n");
 
+exit:
 	return exit_bootloader();
 }
