@@ -258,7 +258,7 @@ static union word block __noinit;
 
 #ifdef NDEBUG
 static inline void debug_init(void) {}
-#define printf(...)
+#define printd(...)
 
 static inline int __attribute__((noreturn))
 exit_bootloader(void)
@@ -305,10 +305,18 @@ debug_init(void)
 	serial_init_stdout();
 }
 
+#if 0
+#undef PSTR
+#define PSTR(s) (__extension__({static const char __c[] PROGMEM = (s); &__c[0];}))
+#define printd(fmt, ...) printf_P(PSTR(fmt), ##__VA_ARGS__)
+#else
+#define printd printf
+#endif
+
 static int __attribute__((noreturn))
 exit_bootloader(void)
 {
-	printf("EXIT\r\n");
+	printd("EXIT\r\n");
 	while (1) {
 		pin_toggle(LED);
 		watchdog_wait();
@@ -319,7 +327,7 @@ static void
 writepage(uint16_t addr, const uint8_t *data)
 {
 	(void)data;
-	printf("Flashing 0x%04X\r\n", addr);
+	printd("Flashing 0x%04X\r\n", addr);
 }
 #endif
 
@@ -327,7 +335,7 @@ static void
 sock0_open(uint16_t port)
 {
 	while (1) {
-		printf("Opening UDP socket");
+		printd("Opening UDP socket");
 
 		/* set multicast UDP mode for socket 0 */
 		wiz_set(WIZ_Sn_MR(0), WIZ_UDP);
@@ -339,10 +347,10 @@ sock0_open(uint16_t port)
 		if (wiz_get(WIZ_Sn_SR(0)) == WIZ_SOCK_UDP)
 			break;
 
-		printf(", error: status = 0x%02hx\r\n", wiz_get(WIZ_Sn_SR(0)));
+		printd(", error: status = 0x%02hx\r\n", wiz_get(WIZ_Sn_SR(0)));
 		wiz_set(WIZ_Sn_CR(0), WIZ_CLOSE);
 	}
-	printf("\r\n");
+	printd("\r\n");
 }
 
 static void
@@ -398,7 +406,7 @@ sock0_readpacket(void)
 	/* in_header.s.port = hton(in_header.s.port); */
 	in_header.s.size = hton(in_header.s.size);
 
-	printf("\r\nReceived udp packet of size %u\r\n",
+	printd("\r\nReceived udp packet of size %u\r\n",
 			in_header.s.size);
 
 	size = in_header.s.size + sizeof(struct wiz_udp_header);
@@ -422,7 +430,7 @@ eb_send(uint8_t (*check)(void))
 	for (next = 1; next < 30; next <<= 1) {
 		uint8_t i;
 
-		printf(">");
+		printd(">");
 		sock0_sendpacket();
 
 		i = next;
@@ -436,7 +444,7 @@ eb_send(uint8_t (*check)(void))
 
 			if (watchdog_interrupt_flag()) {
 				watchdog_interrupt_flag_clear();
-				printf(".");
+				printd(".");
 				i--;
 			}
 		} while (i);
@@ -492,13 +500,13 @@ get_address(void)
 
 	bootp_prepare();
 
-	printf("BOOTREQUEST");
+	printd("BOOTREQUEST");
 	if (eb_send(bootp_check)) {
-		printf("\r\nGiving up :(\r\n");
+		printd("\r\nGiving up :(\r\n");
 		return 1;
 	}
 
-	printf("\r\nBOOTREPLY:\r\n"
+	printd("BOOTREPLY:\r\n"
 	       "  ciaddr: %hu.%hu.%hu.%hu\r\n"
 	       "  yiaddr: %hu.%hu.%hu.%hu\r\n"
 	       "  siaddr: %hu.%hu.%hu.%hu\r\n"
@@ -561,10 +569,8 @@ tftp_ack_prepare(void)
 static uint8_t
 tftp_data_check(void)
 {
-	uint16_t inblock;
-
 	if (in.tftp.op == hton(TFTP_ERROR)) {
-		printf("Error code %u: %s\r\n",
+		printd("Error code %u: %s\r\n",
 		       hton(in.tftp.block),
 		       (char *)(in.tftp.data));
 		return 1;
@@ -573,9 +579,8 @@ tftp_data_check(void)
 	if (in.tftp.op != hton(TFTP_DATA))
 		return 0;
 
-	inblock = hton(in.tftp.block);
-	printf("block = %u\r\n", inblock);
-	if (inblock != block.word + 1)
+	printd("DATA: block %u\r\n", hton(in.tftp.block));
+	if (hton(in.tftp.block) != block.word + 1)
 		return 0;
 
 	block.word++;
@@ -635,10 +640,9 @@ tftp_get(void)
 	tftp_rrq_prepare();
 	block.word = 0;
 
-	printf("RRQ");
+	printd("RRQ");
 	if (eb_send(tftp_data_check))
 		return 1;
-	printf("\r\n");
 
 	if (in.tftp.op == hton(TFTP_ERROR))
 		return 1;
@@ -648,11 +652,10 @@ tftp_get(void)
 	wiz_set_word(WIZ_Sn_DPORT(0), hton(in_header.s.port));
 
 	while (in_header.s.size == 516) {
-		printf("ACK");
+		printd("ACK");
 		tftp_ack_prepare();
 		if (eb_send(tftp_data_check))
 			return 1;
-		printf("\r\n");
 
 		if (in.tftp.op == hton(TFTP_ERROR))
 			return 1;
@@ -690,12 +693,12 @@ main(void)
 	spi_clock_d64();
 	spi_enable();
 
-	printf("\r\n\r\nResetting chip");
+	printd("\r\n\r\nResetting chip");
 	wiz_set(WIZ_MR, 0x80);
 
 	/* wait for it to initialize */
 	watchdog_wait();
-	printf("\r\n");
+	printd("\r\n");
 
 	/* set MAC address */
 	wiz_memcpy_P(WIZ_SHAR, mac_addr, sizeof(mac_addr));
@@ -712,7 +715,7 @@ main(void)
 	if (tftp_get())
 		goto exit;
 
-	printf("Success!\r\n");
+	printd("Success!\r\n");
 
 exit:
 	return exit_bootloader();
