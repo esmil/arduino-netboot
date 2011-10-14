@@ -124,7 +124,6 @@ watchdog_config(uint8_t v)
 static inline void
 watchdog_noreset_500ms(void)
 {
-	MCUSR &= ~(_BV(WDRF));
 	watchdog_config(_BV(WDIE) | _BV(WDP2) | _BV(WDP0));
 }
 
@@ -672,6 +671,7 @@ tftp_get(void)
 int
 main(void)
 {
+	MCUSR = 0; /* we don't care why the chip was reset */
 	watchdog_reset();
 	watchdog_noreset_500ms();
 
