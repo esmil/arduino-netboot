@@ -123,7 +123,7 @@ spi_wait(void)
 	while (!spi_interrupt_flag());
 }
 
-static uint8_t
+uint8_t
 wiz_get(uint16_t reg)
 {
 	union word wreg = { .word = reg };
@@ -142,7 +142,7 @@ wiz_get(uint16_t reg)
 	return spi_read();
 }
 
-static void
+void
 wiz_set(uint16_t reg, uint8_t data)
 {
 	union word wreg = { .word = reg };
@@ -159,7 +159,7 @@ wiz_set(uint16_t reg, uint8_t data)
 	pin_high(SS);
 }
 
-static uint16_t
+uint16_t
 wiz_get_word(uint16_t reg)
 {
 	union word ret;
@@ -169,7 +169,7 @@ wiz_get_word(uint16_t reg)
 	return ret.word;
 }
 
-static void
+void
 wiz_set_word(uint16_t reg, uint16_t data)
 {
 	union word wdata = { .word = data };
@@ -178,7 +178,7 @@ wiz_set_word(uint16_t reg, uint16_t data)
 	wiz_set(reg++, wdata.byte.low);
 }
 
-static void
+void
 wiz_memcpy(uint16_t reg, const uint8_t *data, uint8_t len)
 {
 	for (; len; len--)
@@ -672,27 +672,48 @@ fallback:
 		mac_addr[i] = pgm_read_byte(&(fallback_mac_addr[i]));
 }
 
-int
+void __attribute__((naked)) __attribute__((section (".vectors")))
+vectors(void)
+{
+	__asm__ __volatile__ (
+		"rjmp main\n"
+		"rjmp wiz_get\n"
+		"rjmp wiz_set\n"
+		"rjmp wiz_get_word\n"
+		"rjmp wiz_set_word\n"
+		"rjmp wiz_memcpy\n"
+	);
+}
+
+int __attribute__((naked))
 main(void)
 {
+	/* basic initialization for C to run properly */
+	__asm__ __volatile__ (
+		"clr __zero_reg__\n"
+		"out __SREG__, __zero_reg__\n"
+	);
+	SP = RAMEND;
+
+	/* setup watchdog */
 	MCUSR = 0; /* we don't care why the chip was reset */
 	wdt_reset();
 	wdt_timer_500ms();
 
 	debug_init();
 
-#if 0 /* this is what's going on */
+	/* this is what's going on *
 	pin_mode_output(LED); pin_low(LED);
 
 	pin_mode_output(SS); pin_high(SS);
 	pin_mode_output(MOSI);
 	pin_mode_input(MISO);
 	pin_mode_output(SCK);
-#else /* this saves a few bytes */
+	* ..but this saves a few bytes */
 	DDRB = 0xEF;
 	PORTB = 0x04;
-#endif
 
+	/* setup SPI */
 	spi_mode_master();
 	spi_clock_d64();
 	spi_enable();

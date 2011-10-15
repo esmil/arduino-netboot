@@ -22,6 +22,8 @@
 
 #include <arduino/pins.h>
 
+#include "netboot.h"
+
 #define LED 9
 
 #include "serial_busy_output.c"
@@ -32,6 +34,8 @@
 int
 main(void)
 {
+	uint16_t reg = 0;
+
 	serial_baud_9600();
 	serial_mode_8n1();
 	serial_init_stdout();
@@ -40,7 +44,11 @@ main(void)
 
 	while (1) {
 		pin_toggle(LED);
-		printf_P(PSTR("Hello, World!\r\n"));
+		printf_P(PSTR("Wiznet register 0x%04X = 0x%02hX\r\n"),
+		         reg, wiz_get(reg));
+		reg++;
+		if (reg == 0x0030)
+			reg = 0;
 		_delay_ms(500.0);
 	}
 }

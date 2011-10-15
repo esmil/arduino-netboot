@@ -76,12 +76,16 @@ LDFLAGS    = -Wl,--relax
 all: $(NAME).hex
 
 bootloader: CFLAGS += -DNDEBUG
-bootloader: LDFLAGS += -Wl,--section-start=.text=0x7800
+bootloader: LDFLAGS += -Wl,--section-start=.text=0x7800,--section-start,.noinit=0x800100,--gc-sections -nostartfiles -nodefaultlibs
 bootloader: $(NAME).hex
 
 %.elf: $(or $(FILES),%.c)
 	@echo '  CC $@'
 	@$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
+
+hello_world.elf: hello_world.c
+	@echo '  CC $@'
+	@$(CC) $(CFLAGS) $< netboot.s -o $@ $(LDFLAGS)
 
 %.hex: %.elf
 	@echo '  OBJCOPY $@'
