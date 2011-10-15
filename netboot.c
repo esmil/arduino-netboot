@@ -21,6 +21,7 @@
 
 #include <arduino/pins.h>
 #include <arduino/spi.h>
+#include <arduino/wdt.h>
 
 #include "boot.h"
 #include "w5100.h"
@@ -108,48 +109,11 @@ mymemset(uint8_t *dst, uint8_t c, uint16_t len)
 		*dst++ = c;
 }
 
-static inline void
-watchdog_reset(void)
-{
-	__asm__ __volatile__ ("wdr\n");
-}
-
-static inline void
-watchdog_config(uint8_t v)
-{
-	WDTCSR = _BV(WDCE) | _BV(WDE);
-	WDTCSR = v;
-}
-
-static inline void
-watchdog_noreset_500ms(void)
-{
-	watchdog_config(_BV(WDIE) | _BV(WDP2) | _BV(WDP0));
-}
-
-static inline void
-watchdog_off(void)
-{
-	watchdog_config(0x00);
-}
-
-static inline uint8_t
-watchdog_interrupt_flag(void)
-{
-	return WDTCSR & _BV(WDIF);
-}
-
-static inline void
-watchdog_interrupt_flag_clear(void)
-{
-	WDTCSR |= _BV(WDIF);
-}
-
 static void
-watchdog_wait(void)
+wdt_wait(void)
 {
-	while(!watchdog_interrupt_flag());
-	watchdog_interrupt_flag_clear();
+	while(!wdt_interrupt_flag());
+	wdt_interrupt_flag_clear();
 }
 
 static void
@@ -262,8 +226,8 @@ static inline void debug_init(void) {}
 static inline int __attribute__((noreturn))
 exit_bootloader(void)
 {
-	watchdog_reset();
-	watchdog_off();
+	wdt_reset();
+	wdt_off();
 	__asm__ __volatile__ ("jmp 0\n");
 	__builtin_unreachable();
 }
@@ -318,7 +282,7 @@ exit_bootloader(void)
 	printd("EXIT\r\n");
 	while (1) {
 		pin_toggle(LED);
-		watchdog_wait();
+		wdt_wait();
 	}
 }
 
@@ -433,7 +397,7 @@ eb_send(uint8_t (*check)(void))
 		sock0_sendpacket();
 
 		i = next;
-		watchdog_reset();
+		wdt_reset();
 		do {
 			if (wiz_get_word(WIZ_Sn_RX_RSR(0)) > 0) {
 				sock0_readpacket();
@@ -441,8 +405,8 @@ eb_send(uint8_t (*check)(void))
 					return 0;
 			}
 
-			if (watchdog_interrupt_flag()) {
-				watchdog_interrupt_flag_clear();
+			if (wdt_interrupt_flag()) {
+				wdt_interrupt_flag_clear();
 				printd(".");
 				i--;
 			}
@@ -672,8 +636,8 @@ int
 main(void)
 {
 	MCUSR = 0; /* we don't care why the chip was reset */
-	watchdog_reset();
-	watchdog_noreset_500ms();
+	wdt_reset();
+	wdt_timer_500ms();
 
 	debug_init();
 
@@ -697,7 +661,7 @@ main(void)
 	wiz_set(WIZ_MR, 0x80);
 
 	/* wait for it to initialize */
-	watchdog_wait();
+	wdt_wait();
 	printd("\r\n");
 
 	/* set MAC address */
