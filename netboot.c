@@ -36,6 +36,8 @@
 #define MISO 12 /* master in, slave out */
 #define SCK  13 /* clock                */
 
+#define EEPROM_SIZE 1024
+
 #define BOOTP_CLIENT_PORT 68
 #define BOOTP_SERVER_PORT 67
 
@@ -184,20 +186,15 @@ wiz_memcpy(uint16_t reg, const uint8_t *data, uint8_t len)
 }
 
 static void
-wiz_memcpy_P(uint16_t reg, const uint8_t *data, uint8_t len)
-{
-	for (; len; len--)
-		wiz_set(reg++, pgm_read_byte(data++));
-}
-
-static void
 wiz_memset(uint16_t reg, uint8_t c, uint8_t len)
 {
 	for (; len; len--)
 		wiz_set(reg++, c);
 }
 
-static const uint8_t mac_addr[] PROGMEM = MAC_ADDRESS;
+static const uint8_t fallback_mac_addr[] PROGMEM = MAC_ADDRESS;
+
+static uint8_t mac_addr[6] __noinit;
 
 static union {
 	uint8_t a[sizeof(struct wiz_udp_header)];
@@ -433,7 +430,7 @@ bootp_prepare(void)
 	out.bootp.flags[0] = BOOTP_MULTICAST_HIGH;
 	*/
 	for (i = 0; i < sizeof(mac_addr); i++)
-		out.bootp.chaddr[i] = pgm_read_byte(&(mac_addr[i]));
+		out.bootp.chaddr[i] = mac_addr[i];
 
 	out_size = sizeof(struct bootp);
 }
@@ -633,6 +630,48 @@ tftp_get(void)
 	return 0;
 }
 
+static uint8_t
+eeprom_read(uint16_t addr)
+{
+	/* make sure eeprom is ready */
+	while (EECR & _BV(EEPE));
+
+	EEAR = addr;
+
+	EECR |= _BV(EERE);
+
+	return EEDR;
+}
+
+static void
+init_mac_addr(void)
+{
+	uint16_t eaddr = EEPROM_SIZE - 8;
+	uint8_t i;
+	uint8_t sum;
+
+	if (eeprom_read(eaddr++) != 0)
+		goto fallback;
+
+	sum = eeprom_read(eaddr++);
+	for (i = 0; i < 6; i++) {
+		uint8_t b = eeprom_read(eaddr++);
+
+		mac_addr[i] = b;
+		sum += b;
+	}
+
+	if (sum == 17) {
+		printd("Found MAC in EEPROM\r\n");
+		return;
+	}
+
+fallback:
+	printd("Falling back to default MAC\r\n");
+	for (i = 0; i < 6; i++)
+		mac_addr[i] = pgm_read_byte(&(fallback_mac_addr[i]));
+}
+
 int
 main(void)
 {
@@ -658,15 +697,19 @@ main(void)
 	spi_clock_d64();
 	spi_enable();
 
-	printd("\r\n\r\nResetting chip");
+	printd("\r\n\r\nResetting chip\r\n");
 	wiz_set(WIZ_MR, 0x80);
 
-	/* wait for it to initialize */
+	init_mac_addr();
+
+	/* wait for chip to initialize */
 	wdt_wait();
-	printd("\r\n");
 
 	/* set MAC address */
-	wiz_memcpy_P(WIZ_SHAR, mac_addr, sizeof(mac_addr));
+	printd("Setting MAC address: %02hX:%02hX:%02hX:%02hX:%02hX:%02hX\r\n",
+			mac_addr[0], mac_addr[1], mac_addr[2],
+			mac_addr[3], mac_addr[4], mac_addr[5]);
+	wiz_memcpy(WIZ_SHAR, mac_addr, sizeof(mac_addr));
 
 	/* not needed after chip reset
 	wiz_memset(WIZ_SIPR, 0x00, 4);
