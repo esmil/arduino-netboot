@@ -430,7 +430,9 @@ bootp_prepare(void)
 	out.bootp.xid[1] = XID1;
 	out.bootp.xid[2] = XID2;
 	out.bootp.xid[3] = XID3;
+	/* not needed
 	out.bootp.flags[0] = BOOTP_MULTICAST_HIGH;
+	*/
 	for (i = 0; i < sizeof(mac_addr); i++)
 		out.bootp.chaddr[i] = pgm_read_byte(&(mac_addr[i]));
 
