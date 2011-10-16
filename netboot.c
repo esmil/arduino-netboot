@@ -77,7 +77,6 @@ struct wiz_udp_header {
 	uint16_t size;
 };
 
-#define BOOTP_MAX_FILENAME 128
 struct bootp {
 	uint8_t op;
 	uint8_t htype;
@@ -92,7 +91,7 @@ struct bootp {
 	uint8_t giaddr[4];
 	uint8_t chaddr[16];
 	uint8_t sname[64];
-	char file[BOOTP_MAX_FILENAME];
+	char file[128];
 	uint8_t vend[64];
 };
 
@@ -206,9 +205,9 @@ static union {
 } in_header __noinit;
 
 static union {
-		uint8_t a[sizeof(struct tftp)];
-		struct bootp bootp;
-		struct tftp tftp;
+	uint8_t a[sizeof(struct tftp)];
+	struct bootp bootp;
+	struct tftp tftp;
 } in __noinit;
 
 static union {
@@ -337,7 +336,7 @@ sock0_sendpacket(void)
 
 	/* S0_TX_WR += len */
 	wiz_set_word(WIZ_Sn_TX_WR(0),
-	               wiz_get_word(WIZ_Sn_TX_WR(0)) + out_size);
+			wiz_get_word(WIZ_Sn_TX_WR(0)) + out_size);
 
 	/* send! */
 	wiz_set(WIZ_Sn_CR(0), WIZ_SEND);
@@ -380,7 +379,7 @@ sock0_readpacket(void)
 
 	/* S0_RX_RD += size */
 	wiz_set_word(WIZ_Sn_RX_RD(0),
-	               wiz_get_word(WIZ_Sn_RX_RD(0)) + size);
+			wiz_get_word(WIZ_Sn_RX_RD(0)) + size);
 
 	wiz_set(WIZ_Sn_CR(0), WIZ_RECV);
 }
