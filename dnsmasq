@@ -1,8 +1,10 @@
 #!/bin/sh
 
 exec dnsmasq -d -K -i eth0 \
-  --dhcp-range=interface:eth0,192.168.7.9,192.168.7.9,255.255.255.0 \
-  --dhcp-host=00:08:dc:00:00:4f,192.168.7.9 \
-  --dhcp-boot=/hello_world.bin \
+  --dhcp-range=interface:eth0,192.168.7.10,192.168.7.50,255.255.255.0 \
+  --dhcp-host=00:08:dc:00:00:4f,set:setmac,192.168.7.10 \
+  --dhcp-boot=tag:setmac,/setmac.bin \
+  --dhcp-host=90:a2:da:00:61:ee,set:hello_world,192.168.7.11 \
+  --dhcp-boot=tag:hello_world,/hello_world.bin \
   --enable-tftp --tftp-root=$(dirname $0) \
   --log-dhcp
